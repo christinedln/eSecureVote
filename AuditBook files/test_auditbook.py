@@ -1,91 +1,141 @@
 import unittest
-import io
-import sys
-from AuditClass import AuditBook  # Adjust this import based on your file structure
+from unittest.mock import patch, MagicMock
+from AuditClass import AuditBook
 
-class TestAuditBook(unittest.TestCase):
+# Import the AuditBook class using absolute import since parent directory is a namespace package
 
-    def setUp(self):
-        # Create a fresh AuditBook instance for each test
-        self.audit_book = AuditBook("test_log")
-        # Store the original stdout to restore it later
-        self.original_stdout = sys.stdout
+class TestGetLogsFromFirebase(unittest.TestCase):
+    
+    @patch('firebase_admin.initialize_app')
+    @patch('firebase_admin.credentials.Certificate')
+    @patch('firebase_admin.firestore.client')
+    def setUp(self, mock_firestore_client, mock_certificate, mock_initialize_app):
+        # Set up mocks
+        self.mock_db = MagicMock()
+        self.mock_collection = MagicMock()
+        self.mock_db.collection.return_value = self.mock_collection
+        mock_firestore_client.return_value = self.mock_db
+        
+        # Create test instances
+        self.audit_book_custom = AuditBook("test_log")
+        self.audit_book_default = AuditBook()
+        
+        # Reset firebase mock calls for clean tests
+        mock_firestore_client.reset_mock()
+        self.mock_db.reset_mock()
+        self.mock_collection.reset_mock()
 
-    def tearDown(self):
-        # Restore the original stdout after each test
-        sys.stdout = self.original_stdout
-
-    def test_get_logs_empty(self):
-        """Test getLogs with an empty log list."""
-        # Redirect stdout to capture printed output
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-
+    def test_getLogsFromFirebase_custom_logId(self):
+        """Test retrieving logs with a custom logId"""
+        # Mock data from Firestore
+        mock_doc1 = MagicMock()
+        mock_doc1.to_dict.return_value = {
+            "userId": "user1", 
+            "action": "login", 
+            "timestamp": "2023-01-01 12:00:00"
+        }
+        
+        mock_doc2 = MagicMock()
+        mock_doc2.to_dict.return_value = {
+            "userId": "user2", 
+            "action": "logout", 
+            "timestamp": "2023-01-01 13:00:00"
+        }
+        
+        # Set up the mock to return our fake documents
+        self.mock_collection.stream.return_value = [mock_doc1, mock_doc2]
+        
         # Call the method
-        self.audit_book.getLogs()
+        result = self.audit_book_custom.getLogsFromFirebase()
+        
+        # Verify the collection name is correct for custom logId
+        self.mock_db.collection.assert_called_once_with("audit_logs_test_log")
+        
+        # Verify stream method was called
+        self.mock_collection.stream.assert_called_once()
+        
+        # Check the result
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]["userId"], "user1")
+        self.assertEqual(result[0]["action"], "login")
+        self.assertEqual(result[1]["userId"], "user2")
+        self.assertEqual(result[1]["action"], "logout")
 
-        # Check that nothing was printed
-        self.assertEqual(captured_output.getvalue(), "")
-
-    def test_get_logs_single_entry(self):
-        """Test getLogs with a single log entry."""
-        # Add a log entry using the private method
-        self.audit_book._AuditBook__createLog("user1", "login")
-
-        # Redirect stdout
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-
+    def test_getLogsFromFirebase_default_logId(self):
+        """Test retrieving logs with default logId"""
+        # Mock data from Firestore
+        mock_doc = MagicMock()
+        mock_doc.to_dict.return_value = {
+            "userId": "user1", 
+            "action": "view", 
+            "timestamp": "2023-01-01 15:00:00"
+        }
+        
+        # Set up the mock to return our fake document
+        self.mock_collection.stream.return_value = [mock_doc]
+        
         # Call the method
-        self.audit_book.getLogs()
+        result = self.audit_book_default.getLogsFromFirebase()
+        
+        # Verify the default collection name is used
+        self.mock_db.collection.assert_called_once_with("audit_logs")
+        
+        # Verify stream method was called
+        self.mock_collection.stream.assert_called_once()
+        
+        # Check the result
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["userId"], "user1")
+        self.assertEqual(result[0]["action"], "view")
+        self.assertEqual(result[0]["timestamp"], "2023-01-01 15:00:00")
 
-        # Check the output format (note: we can't check the exact timestamp)
-        output = captured_output.getvalue().strip()
-        self.assertIn("User: user1", output)
-        self.assertIn("Action: login", output)
-        self.assertIn("Time:", output)
-
-    def test_get_logs_multiple_entries(self):
-        """Test getLogs with multiple log entries."""
-        # Add multiple log entries
-        self.audit_book._AuditBook__createLog("user1", "login")
-        self.audit_book._AuditBook__createLog("user2", "view_ballot")
-        self.audit_book._AuditBook__createLog("user1", "cast_vote")
-
-        # Redirect stdout
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-
+    def test_getLogsFromFirebase_empty_results(self):
+        """Test retrieving logs when no logs exist"""
+        # Set up the mock to return empty results
+        self.mock_collection.stream.return_value = []
+        
         # Call the method
-        self.audit_book.getLogs()
+        result = self.audit_book_custom.getLogsFromFirebase()
+        
+        # Verify collection was called
+        self.mock_db.collection.assert_called_once_with("audit_logs_test_log")
+        
+        # Verify stream method was called
+        self.mock_collection.stream.assert_called_once()
+        
+        # Check that result is an empty list
+        self.assertEqual(result, [])
+        self.assertEqual(len(result), 0)
 
-        # Check for all entries in the output
-        output = captured_output.getvalue()
-        self.assertIn("User: user1, Action: login", output)
-        self.assertIn("User: user2, Action: view_ballot", output)
-        self.assertIn("User: user1, Action: cast_vote", output)
-
-        # Count number of lines to verify all entries were printed
-        lines = output.strip().split('\n')
-        self.assertEqual(len(lines), 3)
-
-    def test_get_logs_special_characters(self):
-        """Test getLogs with special characters in user IDs and actions."""
-        # Add log entries with special characters
-        self.audit_book._AuditBook__createLog("user@example.com", "login-attempt#1")
-        self.audit_book._AuditBook__createLog("admin_123", "system: restart")
-
-        # Redirect stdout
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-
+    def test_getLogsFromFirebase_multiple_entries(self):
+        """Test retrieving multiple log entries"""
+        # Create multiple mock entries
+        mock_docs = []
+        for i in range(5):
+            mock_doc = MagicMock()
+            mock_doc.to_dict.return_value = {
+                "userId": f"user{i}", 
+                "action": f"action{i}", 
+                "timestamp": f"2023-01-01 1{i}:00:00"
+            }
+            mock_docs.append(mock_doc)
+        
+        # Set up the mock to return our fake documents
+        self.mock_collection.stream.return_value = mock_docs
+        
         # Call the method
-        self.audit_book.getLogs()
-
-        # Check output
-        output = captured_output.getvalue()
-        self.assertIn("User: user@example.com, Action: login-attempt#1", output)
-        self.assertIn("User: admin_123, Action: system: restart", output)
+        result = self.audit_book_custom.getLogsFromFirebase()
+        
+        # Verify correct collection and method calls
+        self.mock_db.collection.assert_called_once_with("audit_logs_test_log")
+        self.mock_collection.stream.assert_called_once()
+        
+        # Check the result
+        self.assertEqual(len(result), 5)
+        for i in range(5):
+            self.assertEqual(result[i]["userId"], f"user{i}")
+            self.assertEqual(result[i]["action"], f"action{i}")
+            self.assertEqual(result[i]["timestamp"], f"2023-01-01 1{i}:00:00")
 
 if __name__ == '__main__':
     unittest.main()
