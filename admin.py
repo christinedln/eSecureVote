@@ -1,10 +1,17 @@
 from user import User
+from database_service import DatabaseService
+from election import Election
 
 class Admin(User):
+    def __init__(self, user_id: int):
+        self.db_service = DatabaseService()
+        user_data = self.db_service.get_user_data(user_id)
 
-    def __init__(self, user_id: int, admin_level: int):
-        super().__init__(user_id, role="Admin")  
-        self.__admin_level = admin_level 
+        if user_data and user_data.get("role") == "Admin":
+            super().__init__(user_id, role="Admin")
+            self.__admin_level = user_data.get("adminLevel", 0)
+        else:
+            raise ValueError("User is not an admin or does not exist.")
 
     def get_admin_level(self) -> int:
         return self.__admin_level
@@ -13,15 +20,20 @@ class Admin(User):
         self.__admin_level = admin_level
 
     def get_user_id(self) -> int:
-        return super().get_user_id() 
+        return super().get_user_id()
 
-    @staticmethod
-    def get_admin_from_db(username: str, password: str):
+    def create_election(self, election: Election):
+        election_data = {
+            "election_id" : election.get_election_id(),
+            "date": election.get_date(),
+            "time": election.get_time(),
+            "location": election.get_location(),
+            "is_open": election.get_is_open()
+        }
+        self.db_service.save_election(election_data)
 
-        # In a real application, this would query the database
-        if username == "admin1" and password == "admin1password":
-            user_id = 1  # Example user_id for admin1
-            admin_level = 3  # Example admin level for admin1
-            return Admin(user_id, admin_level)
+    def start_election(self, election_id: str):
+        Election.start_election(election_id) 
 
-        return None  
+    def close_election(self, election_id: str):
+        Election.close_election(election_id) 
