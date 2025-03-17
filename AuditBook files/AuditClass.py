@@ -44,18 +44,15 @@ class AuditBook:
         # Save to Firebase
         self.saveLogToFirebase(log_entry)
     
+    #Success or Failure Response:
     def saveLogToFirebase(self, log_entry):
-        """
-        Save a log entry to Firebase.
-        
-        Args:
-            log_entry (dict): The log entry to save
-        """
-        # Use logId as collection name if provided, otherwise use 'audit_logs'
-        collection_name = f"audit_logs_{self.logId}" if self.logId else "audit_logs"
-        
-        # Add the log entry to Firestore
-        self.db.collection(collection_name).add(log_entry)
+        try:
+            collection_name = f"audit_logs_{self.logId}" if self.logId else "audit_logs"
+            self.db.collection(collection_name).add(log_entry)
+            return {"status": "success", "message": "Log saved successfully"}
+        except Exception as e:
+            return {"status": "failure", "message": str(e)}
+
     
     def addLog(self, userId, action):
         """
@@ -91,3 +88,11 @@ class AuditBook:
         firebase_logs = [doc.to_dict() for doc in docs]
         
         return firebase_logs
+    
+    def checkAdminAccess(self, userId):
+    logs = self.getLogsFromFirebase()
+    # Example: Block admin if there are too many failed login attempts
+    failed_attempts = sum(1 for log in logs if log["userId"] == userId and "failed" in log["action"].lower())
+    if failed_attempts >= 3:
+        return False  # Block admin
+    return True  # Allow admin
