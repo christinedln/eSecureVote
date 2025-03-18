@@ -71,6 +71,19 @@ class DatabaseService:
 
         return None
     
+    def get_last_ballot(self):
+        try:
+            ballots_ref = self.db.collection("Ballots").get() 
+            if ballots_ref:
+                last_ballot = ballots_ref[-1] 
+                ballot_data = {"ballot_id": last_ballot.id, **last_ballot.to_dict()}
+                return ballot_data  
+
+        except Exception as e:
+            print(f"Error fetching last ballot: {e}") 
+
+        return None
+    
     def get_all_elections(self):
         """Fetch all elections from the database and print the results."""
         try:
@@ -98,3 +111,38 @@ class DatabaseService:
     
         if elections_ref.get().exists:
             elections_ref.update({"is_open": is_open})
+
+    def get_candidates_for_election(self, election_id: str):
+        try:
+            candidates_ref = self.db.collection("Elections").document(election_id).collection("Candidates").get()
+            candidates_list = []
+
+            for doc in candidates_ref:
+                candidate_data = {"candidate_id": doc.id, **doc.to_dict()}
+                candidates_list.append(candidate_data)
+
+            return candidates_list  
+
+        except Exception as e:
+            print(f"Error fetching candidates for election {election_id}: {e}")
+            return []
+        
+    def get_voter_vote_status(self, user_id: str):
+        voter_doc = self.db.collection("Users").document(user_id).get()
+        if voter_doc.exists:
+            return voter_doc.to_dict()
+        return None
+    
+    def record_encrypted_ballot(self, ballot_id: str, encrypted_votes: list):
+        """Stores the encrypted ballot and its votes in the database."""
+        try:
+            ballot_data = {
+                "encrypted_votes": encrypted_votes,
+            }
+
+            self.db.collection("Ballots").document(ballot_id).set(ballot_data)
+
+            print(f"[SUCCESS] Encrypted ballot recorded with ID: {ballot_id}")
+
+        except Exception as e:
+            print(f"[ERROR] Failed to record encrypted ballot: {e}")
