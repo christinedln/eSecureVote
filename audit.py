@@ -9,6 +9,7 @@ class FirebaseHandler:
         # Initialize Firebase if not already initialized
         if not firebase_admin._apps:
             # Get the path to the Firebase config file
+            # Update path to reflect the new file location
             config_path = os.path.join(os.path.dirname(__file__), 'FirebaseConfig.json')
             cred = credentials.Certificate(config_path)
             firebase_admin.initialize_app(cred)
