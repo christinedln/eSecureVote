@@ -1,5 +1,6 @@
 import firebase_admin
 from firebase_admin import credentials, firestore
+import datetime
 
 class DatabaseService:
     def __init__(self):
@@ -146,3 +147,86 @@ class DatabaseService:
 
         except Exception as e:
             print(f"[ERROR] Failed to record encrypted ballot: {e}")
+
+    def get_all_encrypted_ballots(self, election_id: str):
+        """Retrieves all encrypted ballots for a specific election."""
+        try:
+            ballots_ref = self.db.collection("Ballots").where("election_id", "==", election_id).get()
+            ballots = []
+            
+            for doc in ballots_ref:
+                ballot_data = {"ballot_id": doc.id, **doc.to_dict()}
+                ballots.append(ballot_data)
+                
+            return ballots
+            
+        except Exception as e:
+            print(f"Error fetching encrypted ballots: {e}")
+            return []
+
+    def decrypt_vote(self, encrypted_vote: str):
+        """Decrypts a vote. This would use proper cryptographic methods in a production system."""
+        # This is a placeholder - in a real implementation, this would use proper cryptographic methods
+        # For now, we'll assume the Vote class handles the actual decryption
+        from vote import Vote
+        try:
+            decrypted_data = Vote.decrypt_vote(encrypted_vote)
+            return decrypted_data.get("candidate_id")
+        except Exception as e:
+            print(f"Error decrypting vote: {e}")
+            return None
+
+    def store_election_results(self, election_id: str, results: dict):
+        """Stores the decrypted election results in the database."""
+        try:
+            self.db.collection("Elections").document(election_id).collection("Results").document("final").set(results)
+            return True
+        except Exception as e:
+            print(f"Error storing election results: {e}")
+            return False
+
+    def get_election_results(self, election_id: str):
+        """Retrieves the election results from the database."""
+        try:
+            results_ref = self.db.collection("Elections").document(election_id).collection("Results").document("final").get()
+            if results_ref.exists:
+                return results_ref.to_dict()
+            return None
+        except Exception as e:
+            print(f"Error fetching election results: {e}")
+            return None
+
+    def get_candidates_by_election(self, election_id: str):
+        """Gets all candidates for an election with additional details."""
+        # This is similar to get_candidates_for_election but with more details
+        return self.get_candidates_for_election(election_id)
+
+    def save_election_winners(self, election_id: str, winners: dict):
+        """Saves the winners of an election to the database."""
+        try:
+            self.db.collection("Elections").document(election_id).collection("Results").document("winners").set(winners)
+            return True
+        except Exception as e:
+            print(f"Error saving election winners: {e}")
+            return False
+
+    def log_activity(self, user_id: str, action: str, timestamp=None):
+        """Logs an admin activity for auditing purposes."""
+        if timestamp is None:
+            timestamp = self.get_current_timestamp()
+            
+        try:
+            log_data = {
+                "userId": user_id,
+                "action": action,
+                "timestamp": timestamp
+            }
+            self.db.collection("audit_logs").add(log_data)
+            return True
+        except Exception as e:
+            print(f"Error logging activity: {e}")
+            return False
+
+    def get_current_timestamp(self):
+        """Returns the current timestamp in a standardized format."""
+        return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
