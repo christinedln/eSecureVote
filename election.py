@@ -85,4 +85,67 @@ class Election:
 
         self._db_service.record_encrypted_ballot(ballot_id,  encrypted_votes)
     
+    @classmethod
+    def decrypt_results(cls, election_id: str):
+        """Decrypts the encrypted ballots for vote counting."""
+        encrypted_ballots = cls._db_service.get_all_encrypted_ballots(election_id)
+        decrypted_results = {}
+        
+        for ballot in encrypted_ballots:
+            for encrypted_vote in ballot.get("encrypted_votes", []):
+                # In a real implementation, this would use proper cryptographic methods
+                # to decrypt the votes using the election's private key
+                candidate_id = cls._db_service.decrypt_vote(encrypted_vote)
+                if candidate_id in decrypted_results:
+                    decrypted_results[candidate_id] += 1
+                else:
+                    decrypted_results[candidate_id] = 1
+        
+        # Store the decrypted results in the database
+        cls._db_service.store_election_results(election_id, decrypted_results)
+        return decrypted_results
     
+    @classmethod
+    def post_winners(cls, election_id: str):
+        """Determines the winners of the election and posts the results."""
+        # Get the results, either from database or by decrypting if not already done
+        results = cls._db_service.get_election_results(election_id)
+        if not results:
+            results = cls.decrypt_results(election_id)
+        
+        # Get all candidates for this election
+        candidates = cls._db_service.get_candidates_by_election(election_id)
+        
+        # Group candidates by position
+        positions = {}
+        for candidate in candidates:
+            position = candidate.get("position")
+            if position not in positions:
+                positions[position] = []
+            positions[position].append(candidate)
+        
+        # Determine the winner for each position
+        winners = {}
+        for position, candidates_list in positions.items():
+            max_votes = 0
+            position_winner = None
+            
+            for candidate in candidates_list:
+                candidate_id = candidate.get("candidate_id")
+                votes = results.get(candidate_id, 0)
+                
+                if votes > max_votes:
+                    max_votes = votes
+                    position_winner = candidate
+            
+            if position_winner:
+                winners[position] = {
+                    "candidate": position_winner,
+                    "votes": max_votes
+                }
+        
+        # Post the winners to the database
+        cls._db_service.save_election_winners(election_id, winners)
+        return winners
+
+

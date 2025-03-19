@@ -28,3 +28,40 @@ class Vote:
     
     def get_candidate_id(self) -> str:
         return self.__candidate_id
+
+    @staticmethod
+    def decrypt_vote(encrypted_vote: str) -> dict:
+        """
+        Decrypts a vote from its encrypted format.
+        
+        Args:
+            encrypted_vote: The encrypted vote string
+            
+        Returns:
+            A dictionary containing position and candidate_id
+            
+        Raises:
+            ValueError: If decryption fails
+        """
+        try:
+            # Decode from base64
+            data = base64.b64decode(encrypted_vote)
+            
+            # Extract components (nonce is 16 bytes, tag is 16 bytes)
+            nonce = data[:16]
+            tag = data[16:32]
+            ciphertext = data[32:]
+            
+            # Create cipher with same key and decrypt
+            cipher = AES.new(Vote._key, AES.MODE_EAX, nonce=nonce)
+            vote_data = cipher.decrypt_and_verify(ciphertext, tag).decode()
+            
+            # Split into position and candidate_id
+            position, candidate_id = vote_data.split(":")
+            
+            return {
+                "position": position,
+                "candidate_id": candidate_id
+            }
+        except Exception as e:
+            raise ValueError(f"Failed to decrypt vote: {str(e)}")
