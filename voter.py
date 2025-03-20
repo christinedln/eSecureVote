@@ -1,49 +1,31 @@
+from database_service import add_new_user, check_registered_voter
 from user import User
-from database_service import DatabaseService
-from vote import Vote
 
 class Voter(User):
-    def __init__(self, user_id: str):
-        self.db_service = DatabaseService()
-        user_data = self.db_service.get_user_data(user_id)
-
-        if user_data and user_data.get("role") == "Voter":
-            super().__init__(
-                user_id=user_id,
-                name=user_data.get("name"),
-                province=user_data.get("province"),
-                municipality=user_data.get("municipality"),
-                email=user_data.get("email"),
-                password=user_data.get("password"),  
-                role="Voter"
-            )
-            self.__has_voted = user_data.get("has_voted", False)
-            self.__face_recog = user_data.get("face_recog", str)
-            self.__votes = [] 
-        else:
-            raise ValueError("User is not a voter or does not exist.")
-
-    def has_voted(self) -> bool:
-        return self.__has_voted
-
-    def set_has_voted(self, has_voted: bool):
+    def __init__(self, user_id, name, email, password, province, municipality, address, face_data, has_voted=False):
+        super().__init__(user_id, name, email, password, "Voter", province, municipality, face_recog=True)
+        self.__address = address
+        self.__face_data = face_data
         self.__has_voted = has_voted
 
-    def get_face_recog(self) -> str:
-        return self.__face_recog
-
-    def set_face_recog(self, face_recog: str):
-        self.__face_recog = face_recog
-
-    def get_votes(self):
-        return self.__votes  
-
-    def cast_vote(self, vote: Vote) -> bool:
-
-        for existing_vote in self.get_votes():
-            if existing_vote.get_position() == vote.get_position():
-                return False  
-        self.__votes.append(vote)  
-        return True
-
-
+    def get_address(self):
+        return self.__address
+    
+    def has_already_voted(self):
+        return self.__has_voted
+    
+    def set_address(self, address):
+        self.__address = address
+    
+    def set_has_voted(self, status):
+        self.__has_voted = status
+    
+    def register(self):
+        if check_registered_voter(self.get_email()):
+            voter_data = self.to_dict()
+            voter_data.update({"address": self.__address, "face_data": self.__face_data, "has_voted": self.__has_voted})
+            add_new_user(self.get_user_id(), voter_data)
+            print("✅ Voter registration successful!")
+            return self
+        print("❌ Registration failed: You are not a registered voter.")
+        return None
