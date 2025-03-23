@@ -70,10 +70,3 @@ class Voter(User):
             self.get_email(), self.get_name(), self.get_password(), "Voter",
             self.get_province(), self.get_municipality()
         )
-   
-    def view_results(self, election_id:str):
-        results = self._db_service.get_election_result(election_id)
-        return results
-
-
-

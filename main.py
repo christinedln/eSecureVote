@@ -128,9 +128,9 @@ def admin_menu(admin: Admin):
                 election_id = elections[0]["election_id"]  
                 if not election.is_election_open(election_id):
                     encrypted_ballots = db_service.get_all_encrypted_ballots(election_id)
-    
+                    
                     admin.retrieve_decrypted_ballots(election_id, encrypted_ballots)
-                    election.get_encrypted_results(election_id)
+                    election.encrypt_result(election_id)
                     user_id = admin.get_user_id()
                     action = f"Decrypted and encrypted results for election {election_id} at location {location}"
                     auditlog_id = None
@@ -148,6 +148,7 @@ def admin_menu(admin: Admin):
 
         elif choice == "6":
             if admin.check_admin_privileges(4):
+                election=Election()
                 location = input("Enter the location of the election you want to publish the results: ").strip()
                 elections = db_service.get_elections_by_location(location)
                 if not elections:
@@ -156,6 +157,16 @@ def admin_menu(admin: Admin):
                
                 election_id = elections[0]["election_id"]
                 admin.publish_result(election_id)
+                print("Results are out!")
+                elections = db_service.get_elections_by_location(location)
+                if not elections:
+                    print(f"No elections found for location: {location}")
+                    continue
+           
+                election_id = elections[0]["election_id"]
+                election.view_results(election_id)
+
+                    
                 user_id = admin.get_user_id()  
                 action = f"Published results for election {election_id} at location {location}"
                 auditlog_id = None
@@ -297,7 +308,7 @@ def voter_menu(voter: Voter):
                 continue
            
             election_id = elections[0]["election_id"]  
-            results = voter.view_results(election_id)
+            election.view_results(election_id)
 
         elif choice == "3":
             voter.logout()
