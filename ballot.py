@@ -17,15 +17,6 @@ class Ballot:
 
     def is_complete(self, required_positions: int) -> bool:
         return len(self.__votes) == required_positions
-   
-    def get_candidates_by_position(self, candidates: list):
-        grouped_candidates = {}
-        for candidate in candidates:
-            position = candidate["position"]
-            if position not in grouped_candidates:
-                grouped_candidates[position] = []
-            grouped_candidates[position].append((candidate["candidate_id"], candidate["name"]))
-        return grouped_candidates
 
     def get_ballot_id(self) -> str:
         return self.__ballot_id
