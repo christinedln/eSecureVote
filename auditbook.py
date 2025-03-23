@@ -21,17 +21,3 @@ class AuditBook:
 
     def get_timestamp(self):
         return self.__timestamp
-
-    def _create_log(self):
-
-        audit_data = {
-            "auditlog_id": self.get_auditlog_id(),  
-            "user_id": self.get_user_id(),
-            "action": self.get_action(),
-            "timestamp": self.get_timestamp()
-        }
-
-        self._db_service.save_log(audit_data)
-
-    def view_logs(self):
-        return self._db_service.get_all_logs()
