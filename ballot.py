@@ -10,7 +10,7 @@ class Ballot:
     def __init__(self, ballot_id: str = None):
         self.__ballot_id = ballot_id if ballot_id else generate_ballot_id()
         self.__votes = []  
-        self.__encrypted_ballot_id = self._encryption_service.encrypt(self.__ballot_id)
+        self.__encrypted_ballot_id = self._encryption_service.encrypt_ballot_id(self.__ballot_id)
 
     def add_vote(self, vote: Vote):
         self.__votes.append(vote)
@@ -37,4 +37,4 @@ class Ballot:
         return self.__encrypted_ballot_id
    
     def get_decrypt_ballot_id(self, encrypted_ballot_id: str) -> str:
-        return self._encryption_service.decrypt(encrypted_ballot_id)
+        return self._encryption_service.decrypt_ballot_id(encrypted_ballot_id)
