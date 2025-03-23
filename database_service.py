@@ -127,9 +127,6 @@ class DatabaseService:
             return candidate_doc.to_dict().get("election_id")
         return None  
 
-
-
-
     def set_election_status_to_open(self, election_id: str, is_open: bool):
         elections_ref = self.db.collection("Elections").document(election_id)
    
@@ -146,9 +143,6 @@ class DatabaseService:
 
     def set_voter_status(self, user_id: str):
         user_ref = self.db.collection("Users").document(user_id)
-
-
-
 
         if user_ref.get().exists:
             user_ref.update({"has_voted": True})
@@ -308,34 +302,23 @@ class DatabaseService:
             return None
    
     def store_result(self, json_data, election_id):
-
-
         result_data = json.loads(json_data)
 
-
         collection_ref = self.db.collection('Results')
-
-
         doc_ref = collection_ref.document(election_id)
         doc_ref.set(result_data)
+        print("Results are now stored in the database")
 
 
     def get_election_result(self, election_id: str):
 
-
         collection_ref = self.db.collection('Results')
-
 
         doc_ref = collection_ref.document(election_id)
         doc = doc_ref.get()
 
-
         if doc.exists:
-
-
             result_dict = doc.to_dict()
-
-
             result_string = ""
             for position, details in result_dict.items():
                 result_string += f"{position}:\n"
@@ -343,8 +326,14 @@ class DatabaseService:
                     result_string += f"  {key}: {value}\n"
                 result_string += "\n"  
 
-
             return result_string.strip()
         else:
             return None
+        
+    def get_election_by_id(self, election_id: str) -> dict:
+        election_ref = self.db.collection("Elections").document(election_id)
+        election_doc = election_ref.get()
 
+        if election_doc.exists:
+            return election_doc.to_dict()  
+        return None

@@ -60,24 +60,25 @@ class Election:
     def set_time(self, election_time: str):
         self.__election_time = election_time
 
-
     def set_location(self, location: str):
         self.__election_location = location
-
 
     def set_is_open(self, is_open: bool):
         self.__is_open = is_open
 
+    def is_election_open(self, election_id: str) -> bool:
+        election_data = self._db_service.get_election_by_id(election_id)
+        if election_data:
+            return election_data.get("is_open", False)
+        return False
 
     @classmethod
     def start_election(cls, election_id: str):
         cls._db_service.set_election_status_to_open(election_id, True)
 
-
     @classmethod
     def close_election(cls, election_id: str):
         cls._db_service.set_election_status_to_close(election_id, False)
-
 
     @classmethod
     def has_voter_voted(cls, user_id: str) -> bool:
@@ -103,10 +104,8 @@ class Election:
    
     def submit_ballot(self, ballot: Ballot):
 
-
         ballot_id = ballot.get_encrypted_ballot_id()
         encrypted_votes = [vote.get_encrypted_vote() for vote in ballot.get_votes()]  
-
 
         self._db_service.record_encrypted_ballot(ballot_id,  encrypted_votes)
    
@@ -115,7 +114,7 @@ class Election:
             encrypted_ballot_id = encrypted_ballot['ballot_id']
             encrypted_vote = encrypted_ballot['encrypted_vote']
             ballot = Ballot()
-            decrypted_ballot_id = ballot.decrypt_ballot_id(encrypted_ballot_id)
+            decrypted_ballot_id = ballot.get_decrypt_ballot_id(encrypted_ballot_id)
             vote = Vote()
             vote.set_encrypted_vote(encrypted_vote)
             decrypted_vote = vote.get_decrypted_vote()
@@ -130,7 +129,6 @@ class Election:
         if len(vote_info) == 2:
             position, candidate_id = vote_info
 
-
             if candidate_id == "VOID":
        
                 self.__void_votes.append(decrypted_vote)
@@ -142,19 +140,14 @@ class Election:
                 self.__candidates[candidate_id] += 1
                 self._db_service.update_candidate_vote_count(election_id, candidate_id, self.__candidates[candidate_id])
 
-
         else:
             print(f"Invalid vote format")
 
 
     def __encrypt_result(self, election_id: str):
         highest_votes = self._db_service.get_highest_vote(election_id)
-     
         result_json = json.dumps(highest_votes)
-
-
         encrypted_result = self.encrypt(result_json)
-       
         self._db_service.store_encrypted_result(election_id, encrypted_result)
    
     def encrypt(self, data: str):
@@ -170,28 +163,21 @@ class Election:
         decrypted_result = self.decrypt(encrypted_data)
         self._db_service.store_result(decrypted_result, election_id)
 
-
     def decrypt(self, encrypted_data: str):
- 
         encrypted_data_bytes = base64.urlsafe_b64decode(encrypted_data + "==")
-
 
         nonce = encrypted_data_bytes[:16]
         tag = encrypted_data_bytes[16:32]
         ciphertext = encrypted_data_bytes[32:]
 
-
         cipher = AES.new(self._key, AES.MODE_EAX, nonce=nonce)
 
-
         decrypted_data = cipher.decrypt_and_verify(ciphertext, tag)
-
 
         return decrypted_data
    
     def get_decrypted_results(self, election_id: str):
         return self.__decrypt_results(election_id)
-
 
     def get_encrypted_results(self, election_id: str):
         return self.__encrypt_result(election_id)
