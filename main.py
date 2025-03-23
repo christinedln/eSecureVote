@@ -68,12 +68,10 @@ def admin_menu(admin: Admin):
                         candidate = Candidate(name, position, is_independent, political_party)
                         election.add_candidate(selected_election["election_id"], candidate)
 
-
                         user_id = admin.get_user_id()
                         action = f"Added candidate {name} to election {election_id}"
                         auditlog_id = None
                         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
 
                         audit = AuditBook(auditlog_id= auditlog_id, user_id=user_id, action=action, timestamp=timestamp)
                         audit._create_log()
@@ -119,8 +117,6 @@ def admin_menu(admin: Admin):
                 print("Invalid Election ID. Please enter a valid one.")
         elif choice == "5":
             election=Election()
-
-
             if admin.check_admin_privileges(3):
                 location = input("Enter the location of the election you want to decrypt: ").strip()
                
@@ -128,24 +124,24 @@ def admin_menu(admin: Admin):
                 if not elections:
                     print(f"No elections found for location: {location}")
                     continue
-               
+                    
                 election_id = elections[0]["election_id"]  
-               
-                encrypted_ballots = db_service.get_all_encrypted_ballots(election_id)
- 
-                admin.retrieve_decrypted_ballots(election_id, encrypted_ballots)
-                election.get_encrypted_results(election_id)
-                user_id = admin.get_user_id()
-                action = f"Decrypted and encrypted results for election {election_id} at location {location}"
-                auditlog_id = None
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                if election.is_election_open(election_id):
+                    encrypted_ballots = db_service.get_all_encrypted_ballots(election_id)
+    
+                    admin.retrieve_decrypted_ballots(election_id, encrypted_ballots)
+                    election.get_encrypted_results(election_id)
+                    user_id = admin.get_user_id()
+                    action = f"Decrypted and encrypted results for election {election_id} at location {location}"
+                    auditlog_id = None
+                    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+                    audit = AuditBook(auditlog_id= auditlog_id, user_id=user_id, action=action, timestamp=timestamp)
 
-                audit = AuditBook(auditlog_id= auditlog_id, user_id=user_id, action=action, timestamp=timestamp)
-
-
-                audit._create_log()
-                print("Counting of votes finished!")
+                    audit._create_log()
+                    print("Counting of votes finished!")
+                else:
+                    print("The election is currently open. You can't count the votes yet.")
             else:
                 print("Access Denied: You do not have the required admin level.")
 
