@@ -3,13 +3,15 @@ from candidate import Candidate
 from ballot import Ballot
 from vote import Vote
 from utils import generate_election_id
+from encryption_service import EncryptionService
 from Crypto.Cipher import AES
 import json
 import base64
 
 class Election:
-    _key = b'Sixteen byte key'
     _db_service = DatabaseService()  
+    _encryption_service = EncryptionService()
+
     def __init__(self, election_id: str = None, election_date: str = None, election_time: str = None, location: str = "", is_open: bool = False):
         self.__election_id = election_id if election_id else generate_election_id()
         self.__election_date = election_date
@@ -105,62 +107,32 @@ class Election:
    
     def count_votes(self, election_id:str, decrypted_vote: str):
         vote_info = decrypted_vote.split(":")
-       
         if len(vote_info) == 2:
             position, candidate_id = vote_info
-
             if candidate_id == "VOID":
        
                 self.__void_votes.append(decrypted_vote)
             else:
                 if candidate_id not in self.__candidates:
- 
                     self.__candidates[candidate_id] = 0
- 
                 self.__candidates[candidate_id] += 1
                 self._db_service.update_candidate_vote_count(election_id, candidate_id, self.__candidates[candidate_id])
 
         else:
             print(f"Invalid vote format")
 
-
-    def __encrypt_result(self, election_id: str):
+    def encrypt_result(self, election_id: str):
         highest_votes = self._db_service.get_highest_vote(election_id)
         result_json = json.dumps(highest_votes)
-        encrypted_result = self.encrypt(result_json)
+        encrypted_result = self._encryption_service.encrypt_result(result_json)
         self._db_service.store_encrypted_result(election_id, encrypted_result)
    
-    def encrypt(self, data: str):
-        cipher = AES.new(self._key, AES.MODE_EAX)
-        ciphertext, tag = cipher.encrypt_and_digest(data.encode())
-
-        encrypted_data = cipher.nonce + tag + ciphertext
-        return base64.urlsafe_b64encode(encrypted_data).decode().rstrip("=")
-   
-    def __decrypt_results(self, election_id:str):
+    def decrypt_results(self, election_id:str):
         encrypted_data = self._db_service.get_encrypted_results(election_id)
-        decrypted_result = self.decrypt(encrypted_data)
+        decrypted_result = self._encryption_service.decrypt_result(encrypted_data)
         self._db_service.store_result(decrypted_result, election_id)
 
-    def decrypt(self, encrypted_data: str):
-        encrypted_data_bytes = base64.urlsafe_b64decode(encrypted_data + "==")
-
-        nonce = encrypted_data_bytes[:16]
-        tag = encrypted_data_bytes[16:32]
-        ciphertext = encrypted_data_bytes[32:]
-
-        cipher = AES.new(self._key, AES.MODE_EAX, nonce=nonce)
-
-        decrypted_data = cipher.decrypt_and_verify(ciphertext, tag)
-
-        return decrypted_data
-   
-    def get_decrypted_results(self, election_id: str):
-        return self.__decrypt_results(election_id)
-
-    def get_encrypted_results(self, election_id: str):
-        return self.__encrypt_result(election_id)
-   
-
-
-
+    def view_results(self, election_id:str):
+        results = self._db_service.get_election_result(election_id)
+        print(results)
+        return results
