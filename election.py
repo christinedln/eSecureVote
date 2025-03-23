@@ -2,16 +2,16 @@ from database_service import DatabaseService
 from candidate import Candidate
 from ballot import Ballot
 from vote import Vote
+from utils import generate_election_id
 from Crypto.Cipher import AES
 import json
 import base64
-
 
 class Election:
     _key = b'Sixteen byte key'
     _db_service = DatabaseService()  
     def __init__(self, election_id: str = None, election_date: str = None, election_time: str = None, location: str = "", is_open: bool = False):
-        self.__election_id = election_id if election_id else self.__generate_election_id()
+        self.__election_id = election_id if election_id else generate_election_id()
         self.__election_date = election_date
         self.__election_time = election_time
         self.__election_location = location
@@ -19,43 +19,23 @@ class Election:
         self.__candidates = {}  
         self.__void_votes = []  
 
-
-    def __generate_election_id(self) -> str:
-        last_election = self._db_service.get_last_election()
-
-
-        if last_election:
-            last_id = last_election["election_id"]
-            if last_id.startswith("elid") and last_id[4:].isdigit():
-                return f"elid{int(last_id[4:]) + 1:02d}"
-
-
-        return "elid01"  
-
-
     def get_election_id(self) -> str:
         return self.__election_id
-
 
     def get_date(self) -> str:
         return self.__election_date
 
-
     def get_time(self) -> str:
         return self.__election_time
-
 
     def get_location(self) -> str:
         return self.__election_location
 
-
     def get_is_open(self) -> bool:
         return self.__is_open
 
-
     def set_date(self, election_date: str):
         self.__election_date = election_date
-
 
     def set_time(self, election_time: str):
         self.__election_time = election_time
@@ -153,7 +133,6 @@ class Election:
     def encrypt(self, data: str):
         cipher = AES.new(self._key, AES.MODE_EAX)
         ciphertext, tag = cipher.encrypt_and_digest(data.encode())
-
 
         encrypted_data = cipher.nonce + tag + ciphertext
         return base64.urlsafe_b64encode(encrypted_data).decode().rstrip("=")
