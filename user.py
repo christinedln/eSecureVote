@@ -1,12 +1,12 @@
 from database_service import DatabaseService
 from login_service import LoginService
-from utils import hash_password
+from utils import hash_password, generate_user_id
 
 
 class User:
     _db_service = DatabaseService()
     def __init__(self, user_id, name, email, password, role, province, municipality, face_recog=False):
-        self.__user_id = user_id
+        self.__user_id = user_id if user_id else generate_user_id()
         self.__name = name
         self.__email = email
         self.__password = password
@@ -15,7 +15,6 @@ class User:
         self.__municipality = municipality
         self.__face_recog = face_recog
         self._login_service = LoginService()
-        self.__user_id = user_id if user_id else self.__generate_user_id()
        
     def get_user_id(self):
         return self.__user_id
@@ -41,47 +40,27 @@ class User:
     def get_password(self):
         return self.__password
 
-
     def set_name(self, name):
         self.__name = name
-
 
     def set_email(self, email):
         self.__email = email
 
-
     def set_password(self, password, role):
         self.__password = hash_password(password, role)
-
 
     def set_role(self, role):
         self.__role = role
 
-
     def set_province(self, province):
         self.__province = province
-
 
     def set_municipality(self, municipality):
         self.__municipality = municipality
 
-
     def set_face_recog(self, status):
         self.__face_recog = status
         self._db_service.update_user_face_recog(self.get_user_id(), status)
-
-
-    def __generate_user_id(self) -> str:
-        last_user_id = self._db_service.get_last_user_id()
-
-
-        if last_user_id:
-            last_id = last_user_id["user_id"]
-            if last_id.startswith("usid") and last_id[4:].isdigit():
-                return f"usid{int(last_id[4:]) + 1:02d}"
-
-
-        return "usid01"
    
     def logout(self):
         self.__email = None
@@ -90,6 +69,3 @@ class User:
     @staticmethod
     def login(email, password):
         return LoginService.authenticate_user(email, password)
-
-
-
