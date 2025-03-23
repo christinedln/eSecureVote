@@ -70,7 +70,7 @@ class Admin(User):
 
     def publish_result(self, election_id:str):
         election=Election()
-        election.get_decrypted_results(election_id)
+        election.decrypt_results(election_id)
 
 
 
