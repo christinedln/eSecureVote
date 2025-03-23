@@ -59,6 +59,19 @@ class DatabaseService:
             raise ValueError("Election ID is missing from the election data.")
         audit_data_ref.document(auditlog_id).set(audit_data)
 
+    def get_all_logs(self):
+        audit_data_ref = self.db.collection("AuditBook")
+        
+        logs = audit_data_ref.stream()
+
+        log_strings = []
+        for log in logs:
+            log_data = log.to_dict()
+            log_string = f"User ID: {log_data['user_id']}, Action: {log_data['action']}, Timestamp: {log_data['timestamp']}"
+            log_strings.append(log_string)
+
+        return log_strings
+
 
     def save_candidate(self, election_id: str, candidate_data: dict):
         elections_ref = self.db.collection("Elections").document(election_id)
