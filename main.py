@@ -21,7 +21,8 @@ def admin_menu(admin: Admin):
         print("4. Close Election")
         print("5. Count Results")
         print("6. View and Publish Results")
-        print("7. Logout")
+        print("7. View Logs")
+        print("8. Logout")
 
         choice = input("Enter your choice: ")
 
@@ -44,7 +45,6 @@ def admin_menu(admin: Admin):
 
         elif choice == "2":
             if admin.check_admin_privileges(1):
-                election = Election()
                 elections = db_service.get_all_elections()
 
                 if elections:
@@ -126,7 +126,7 @@ def admin_menu(admin: Admin):
                     continue
                     
                 election_id = elections[0]["election_id"]  
-                if election.is_election_open(election_id):
+                if not election.is_election_open(election_id):
                     encrypted_ballots = db_service.get_all_encrypted_ballots(election_id)
     
                     admin.retrieve_decrypted_ballots(election_id, encrypted_ballots)
@@ -164,7 +164,22 @@ def admin_menu(admin: Admin):
                 audit._create_log()
             else:
                 print("Access Denied: You do not have the required admin level.")
-        elif choice == "7":
+
+        elif choice =="7":
+            if admin.check_admin_privileges(5):
+                audit_book = AuditBook()
+
+                logs = audit_book.view_logs()
+                if logs:
+                    print("Audit Logs:")
+                    for log in logs:
+                        print(log)
+                else:
+                    print("No logs found!")
+            else: 
+                print("Access Denied: You do not have the required admin level.")
+                
+        elif choice == "8":
             admin.logout()
             print("User logged out successfully. Email and password have been reset.")
             break
