@@ -320,7 +320,6 @@ class DatabaseService:
         collection_ref = self.db.collection('Results')
         doc_ref = collection_ref.document(election_id)
         doc_ref.set(result_data)
-        print("Results are now stored in the database")
 
 
     def get_election_result(self, election_id: str):
