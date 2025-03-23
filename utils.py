@@ -27,3 +27,6 @@ def generate_election_id() -> str:
 
 def generate_candidate_id() -> str:
     return generate_id("caid", "candidate", db_service.get_last_candidate)
+
+def generate_auditlog_id() -> str:
+    return generate_id("alid", "auditlog", db_service.get_last_auditlog)
