@@ -12,10 +12,10 @@ class ElectionManager:
         self.__void_votes = []
 
     def start_election(self, election_id: str):
-        self._db_service.set_election_status_to_open(election_id, True)
+        return self._db_service.set_election_status_to_open(election_id, True)
 
     def close_election(self, election_id: str):
-        self._db_service.set_election_status_to_close(election_id, False)
+        return self._db_service.set_election_status_to_close(election_id, False)
 
     def has_voter_voted(self, user_id: str) -> bool:
         vote_record = self._db_service.get_voter_vote_status(user_id)
@@ -30,7 +30,8 @@ class ElectionManager:
     def submit_ballot(self, ballot: Ballot):
         ballot_id = ballot.get_encrypted_ballot_id()
         encrypted_votes = [vote.get_encrypted_vote() for vote in ballot.get_votes()]
-        self._db_service.record_encrypted_ballot(ballot_id, encrypted_votes)
+        return self._db_service.record_encrypted_ballot(ballot_id, encrypted_votes)
+        
 
     def count_votes(self, election_id: str, decrypted_vote: str):
         vote_info = decrypted_vote.split(":")
@@ -50,7 +51,7 @@ class ElectionManager:
     def decrypt_results(self, election_id: str):
         encrypted_data = self._db_service.get_encrypted_results(election_id)
         decrypted_result = self._encryption_service.decrypt_result(encrypted_data)
-        self._db_service.store_result(decrypted_result, election_id)
+        return self._db_service.store_result(decrypted_result, election_id)
 
     def view_results(self, election_id: str):
         results = self._db_service.get_election_result(election_id)

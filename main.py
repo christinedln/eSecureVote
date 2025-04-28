@@ -37,7 +37,7 @@ def admin_menu(admin: Admin):
                 location = input("Enter election location: ")
                 is_open = False
                 election = Election(election_id=None, date=date, time=time, location=location, is_open=is_open)
-                election.create_election()
+                result = election.create_election()
 
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 action = f"added election {election.get_election_id()}"
@@ -46,7 +46,10 @@ def admin_menu(admin: Admin):
                 log = AuditBook(auditlog_id = None, user_id=user_id, action=action, timestamp=timestamp)
                 manager.create_log(log)
 
-                print("Election has been saved successfully")
+                if result:
+                    print("Election has been saved successfully!")
+                else:
+                    print("Election creation failed.")
             else:
                 print("Access Denied: You do not have the required admin level.")
 
@@ -73,7 +76,7 @@ def admin_menu(admin: Admin):
                         is_independent = True if is_independent == 'y' else False
                         political_party = input("Enter the political party: ") if not is_independent else "Independent"
                         candidate = Candidate(name, position, is_independent, political_party)
-                        election.add_candidate(selected_election["election_id"], candidate)
+                        result = election.add_candidate(selected_election["election_id"], candidate)
 
                         user_id = admin.get_user_id()
                         action = f"Added candidate {name} to election {election_id}"
@@ -81,7 +84,11 @@ def admin_menu(admin: Admin):
                         manager = AuditBookManager()
                         log = AuditBook(auditlog_id = None, user_id=user_id, action=action, timestamp=timestamp)
                         manager.create_log(log)
-                        print("Candidate has been saved successfully.")
+
+                        if result:
+                            print("Candidate has been added successfully!")
+                        else:
+                            print("Adding a candidate failed.")
                        
                     else:
                         print("Invalid Election ID. Please enter a valid one.")
@@ -109,9 +116,15 @@ def admin_menu(admin: Admin):
                 selected_election = next((e for e in elections if e['election_id'] == election_id), None)
 
                 if selected_election:
-                    getattr(election_manager, f"{action}_election")(selected_election["election_id"])
-                    print(f"Election is now {action}ed!")
-
+                    result = getattr(election_manager, f"{action}_election")(selected_election["election_id"])
+                    if result:
+                        if action == "start":
+                            print("Election started successfully.")
+                        else:
+                            print("Election closed successfully.")
+                    else:
+                        print(f"Failed to {action} the election.")
+                        
                     user_id = admin.get_user_id()
                     action = f"{action.capitalize()}ed election {election_id}"
                     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -137,15 +150,18 @@ def admin_menu(admin: Admin):
                 if not election_manager.is_election_open(election_id):
                     encrypted_ballots = db_service.get_all_encrypted_ballots(election_id)
                     election_manager.get_decrypted_ballots(election_id, encrypted_ballots)
-                    election_manager.encrypt_result(election_id)
+                    result = election_manager.encrypt_result(election_id)
+
                     user_id = admin.get_user_id()
                     action = f"Decrypted and encrypted results for election {election_id} at location {location}"
                     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
                     manager = AuditBookManager()
                     log = AuditBook(auditlog_id = None, user_id=user_id, action=action, timestamp=timestamp)
                     manager.create_log(log)
-                    print("Counting of votes finished!")
+                    if result:
+                        print("Counting of votes finished!")
+                    else: 
+                        print("Counting of votes failed.")
                 else:
                     print("The election is currently open. You can't count the votes yet.")
             else:
@@ -161,17 +177,14 @@ def admin_menu(admin: Admin):
                     continue
                
                 election_id = elections[0]["election_id"]
-                election_manager.decrypt_results(election_id)
-                print("Results are out!")
-                elections = db_service.get_elections_by_location(location)
-                if not elections:
-                    print(f"No elections found for location: {location}")
-                    continue
+                result = election_manager.decrypt_results(election_id)
+                if result:
+                    print("Results are out!")
+                else:
+                    print(f"Error: Getting results failed for election_id={election_id}")
            
                 election_id = elections[0]["election_id"]
                 election_manager.view_results(election_id)
-
-                    
                 user_id = admin.get_user_id()  
                 action = f"Published results for election {election_id} at location {location}"
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -296,10 +309,18 @@ def voter_menu(voter: Voter):
 
                         for vote in ballot.get_votes():
                             encrypted_vote = vote.get_encrypted_vote()
-                        election_manager.submit_ballot(ballot)
-                        election_manager.get_voter_status(voter.get_user_id())
+                        result1 =  election_manager.submit_ballot(ballot)
+                        if result1 == True:
+                            result2 = election_manager.get_voter_status(voter.get_user_id())
+                        else:
+                            print("Ballot submission failed.")
                     else:
                         print("Ballot submission canceled.")
+
+                    if result1 and result2 == True:
+                        print("Ballot submitted successfully!")
+                    else:
+                        print("Ballot submission failed.")
 
             else:
                 print("\nNo elections found in your municipality and province.")
@@ -376,6 +397,7 @@ def main():
 
         else:
             print("Invalid choice. Please try again.")
+
 
 if __name__ == "__main__":
     main()

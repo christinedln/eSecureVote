@@ -46,7 +46,7 @@ class Election:
             "location": self.__location,
             "is_open": self.__is_open
         }
-        db_service.save_election(election_data)
+        return db_service.save_election(election_data)
 
     def add_candidate(self, election_id, candidate: Candidate):
         db_service = DatabaseService()
@@ -57,4 +57,4 @@ class Election:
             "is_independent": candidate.get_is_independent(),
             "political_party": candidate.get_political_party(),
         }
-        db_service.save_candidate(election_id, candidate_data)
+        return db_service.save_candidate(election_id, candidate_data)

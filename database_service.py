@@ -42,12 +42,17 @@ class DatabaseService:
     def update_user_face_recog(self, user_id: str, status: bool):
         self.db.collection("Users").document(user_id).update({"face_recog": status})
 
-    def save_election(self, election_data: dict):
-        elections_ref = self.db.collection("Elections")
-        election_id = election_data.pop("election_id", None)
-        if not election_id:
-            raise ValueError("Election ID is missing from the election data.")
-        elections_ref.document(election_id).set(election_data)
+    def save_election(self, election_data: dict) -> bool:
+        try:
+            elections_ref = self.db.collection("Elections")
+            election_id = election_data.pop("election_id", None)
+            if not election_id:
+                raise ValueError("Election ID is missing from the election data.")
+            elections_ref.document(election_id).set(election_data)
+            return True
+        except Exception as e:
+            print(f"[ERROR] Failed to save election: {e}")
+            return False
 
     def save_log(self, audit_data):
         audit_data_ref = self.db.collection("AuditBook")
@@ -69,15 +74,21 @@ class DatabaseService:
         return log_strings
 
     def save_candidate(self, election_id: str, candidate_data: dict):
-        elections_ref = self.db.collection("Elections").document(election_id)
-        candidates_ref = elections_ref.collection("Candidates")
-        all_candidates_ref = self.db.collection("Candidates")
-        candidate_id = candidate_data.pop("candidate_id", None)
-        if not candidate_id:
-            raise ValueError("Candidate ID is missing from the candidate data.")
-        candidates_ref.document(candidate_id).set(candidate_data)
-        candidate_data["election_id"] = election_id
-        all_candidates_ref.document(candidate_id).set(candidate_data)
+        try:
+            elections_ref = self.db.collection("Elections").document(election_id)
+            candidates_ref = elections_ref.collection("Candidates")
+            all_candidates_ref = self.db.collection("Candidates")
+            candidate_id = candidate_data.pop("candidate_id", None)
+            if not candidate_id:
+                raise ValueError("Candidate ID is missing from the candidate data.")
+            candidates_ref.document(candidate_id).set(candidate_data)
+            candidate_data["election_id"] = election_id
+            all_candidates_ref.document(candidate_id).set(candidate_data)
+            return True
+        except Exception as e:
+            print(f"[ERROR] Failed to save candidate: {e}")
+            return False
+
 
     def get_user_data(self, user_id: int):
         user_doc = self.db.collection("Users").document(str(user_id)).get()
@@ -126,15 +137,27 @@ class DatabaseService:
             return candidate_doc.to_dict().get("election_id")
         return None  
 
-    def set_election_status_to_open(self, election_id: str, is_open: bool):
-        elections_ref = self.db.collection("Elections").document(election_id)
-        if elections_ref.get().exists:
-            elections_ref.update({"is_open": is_open})
+    def set_election_status_to_open(self, election_id: str, is_open: bool) -> bool:
+        try:
+            elections_ref = self.db.collection("Elections").document(election_id)
+            if elections_ref.get().exists:
+                elections_ref.update({"is_open": is_open})
+                return True
+            return False
+        except Exception as e:
+            print(f"[ERROR] Failed to set election status to open: {e}")
+            return False
 
-    def set_election_status_to_close(self, election_id: str, is_open: bool):
-        elections_ref = self.db.collection("Elections").document(election_id)
-        if elections_ref.get().exists:
-            elections_ref.update({"is_open": is_open})
+    def set_election_status_to_close(self, election_id: str, is_open: bool) -> bool:
+        try:
+            elections_ref = self.db.collection("Elections").document(election_id)
+            if elections_ref.get().exists:
+                elections_ref.update({"is_open": is_open})
+                return True
+            return False
+        except Exception as e:
+            print(f"[ERROR] Failed to set election status to close: {e}")
+            return False
 
     def set_voter_status(self, user_id: str):
         user_ref = self.db.collection("Users").document(user_id)
@@ -155,11 +178,13 @@ class DatabaseService:
         voter_doc = self.db.collection("Users").document(user_id).get()
         return voter_doc.to_dict() if voter_doc.exists else None
 
-    def record_encrypted_ballot(self, ballot_id: str, encrypted_votes: list):
+    def record_encrypted_ballot(self, ballot_id: str, encrypted_votes: list) -> bool:
         try:
             self.db.collection("Ballots").document(ballot_id).set({"encrypted_votes": encrypted_votes})
+            return True
         except Exception as e:
             print(f"[ERROR] Failed to record encrypted ballot: {e}")
+            return False
 
     def get_all_encrypted_ballots(self, election_id: str):
         try:
@@ -269,13 +294,19 @@ class DatabaseService:
                 return None
         else:
             return None
-   
-    def store_result(self, json_data, election_id):
-        result_data = json.loads(json_data)
 
-        collection_ref = self.db.collection('Results')
-        doc_ref = collection_ref.document(election_id)
-        doc_ref.set(result_data)
+    def store_result(self, json_data, election_id):
+        try:
+            result_data = json.loads(json_data)
+
+            collection_ref = self.db.collection('Results')
+            doc_ref = collection_ref.document(election_id)
+            doc_ref.set(result_data)
+
+            return True
+        except:
+            return False
+
 
     def get_election_result(self, election_id: str):
 
